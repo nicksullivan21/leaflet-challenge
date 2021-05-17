@@ -10,17 +10,17 @@ function markerSize(magnitude) {
 // Function to set marker colour based on magnitude
 function markerColour(magnitude) {
     if (magnitude > 5) {
-        return '#B22222'
+        return '#ff3300'
     } else if (magnitude > 4) {
-        return '#CD5C5C'
+        return '#e67300'
     } else if (magnitude > 3) {
-        return '#F08080'
+        return '#ff9933'
     } else if (magnitude > 2) {
-        return '#DAA520'
+        return '#ffcc66'
     } else if (magnitude > 1) {
-        return '#FFD700'
-    } else {
-        '#7FFF00'
+        return '#ccff66'
+    } else if (magnitude > 0) {
+        return '#99ff66'
     }
 }
 
@@ -28,6 +28,7 @@ function markerColour(magnitude) {
 d3.json(queryURL, function(data) {
     var earthquakes = L.geoJSON(data.features, {
         onEachFeature: popUp,
+        style: marker,
         pointToLayer: marker 
     });
     createMap(earthquakes);
@@ -36,10 +37,12 @@ d3.json(queryURL, function(data) {
 // Function to create markers
 function marker(feature, location) {
     var options = {
-        stroke: false,
-        color: markerColour(feature.properties.mag),
+        stroke: true,
+        color: '#000000',
+        fillOpacity: 1,
         fillColor: markerColour(feature.properties.mag),
-        radius: markerSize(feature.properties.mag)
+        radius: markerSize(feature.properties.mag),
+        weight: 0.5
     }
 
     return L.circleMarker(location, options);
@@ -47,66 +50,51 @@ function marker(feature, location) {
 
 // Function to create popups
 function popUp(feature, layer) {
-    return layer.bindPopup("<p>" + feature.properties.title + "</p>" +
-        "<p>Type: " + feature.properties.type + "</p>" +
-        "<p>Depth: " + feature.geometry.coordinates[2] + "/p>" + 
+    return layer.bindPopup("Location: " + feature.properties.place + "</p>" +
         "<p>Magnitude: " + feature.properties.mag + "</p>");
 }
 
-// Function to creat map and receive markers
+// Function to create map and receive markers
 function createMap(earthquakes) {
 
-    // Define streetmap and darkmap layers
-    var streetmap = L.tileLayer("https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}", {
-      maxZoom: 18,
-      id: "mapbox.streets",
-      accessToken: API_KEY
-    });
+  // Define streetmap layer
+  var streetmap = L.tileLayer("https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}", {
+    maxZoom: 18,
+    id: "mapbox/streets-v11",
+    accessToken: API_KEY
+  });
   
-    var darkmap = L.tileLayer("https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}", {
-      maxZoom: 18,
-      id: "mapbox.dark",
-      accessToken: API_KEY
-    });
+  // Define a baseMaps object to hold our base layers
+  var baseMap = {
+    "Street Map": streetmap,
+  };
   
-    // Define a baseMaps object to hold our base layers
-    var baseMaps = {
-      "Street Map": streetmap,
-      "Dark Map": darkmap
-    };
+  // Create overlay object to hold our overlay layer
+  var overlayMaps = {
+    Earthquakes: earthquakes
+  };
   
-    // Create overlay object to hold our overlay layer
-    var overlayMaps = {
-      Earthquakes: earthquakes
-    };
+  // Create map, giving it the streetmap and earthquakes layers to display on load
+  var myMap = L.map("map", {
+    center: [37.09, -95.71],
+    zoom: 5,
+    layers: [streetmap, earthquakes]
+  });
   
-    // Create map, giving it the streetmap and earthquakes layers to display on load
-    var myMap = L.map("map", {
-      center: [37.09, -95.71],
-      zoom: 5,
-      layers: [streetmap, earthquakes]
-    });
-  
-    // Create legend
-    var legend = L.control({ position: "bottomright" });
+  // Create legend
+  var legend = L.control({ position: "bottomright" });
 
-    legend.onAdd = function(map) {
-      var div = L.DomUtil.create("div", "legend");
-      div.innerHTML += "<h4>Earthquake intensity</h4>";
-      div.innerHTML += '<i style="background: #7FFF00"></i><span>-10-10</span><br>';
-      div.innerHTML += '<i style="background: #FFD700"></i><span>10-30</span><br>';
-      div.innerHTML += '<i style="background: #DAA520"></i><span>30-50</span><br>';
-      div.innerHTML += '<i style="background: #F08080"></i><span>50-70</span><br>';
-      div.innerHTML += '<i style="background: #CD5C5C"></i><span>70-90</span><br>';
-      div.innerHTML += '<i style="background: #B22222"></i><span>90+</span><br>';      
-      return div;
-    };
-    legend.addTo(myMap);
+  legend.onAdd = function() {
+    var div = L.DomUtil.create("div", "legend");
+    var grades = [0, 1 , 2, 3, 4, 5];
+    var colours = ["#99ff66", "#ccff66", "#ffcc66", "#ff9933", "#e67300", "#ff3300"]
+    
+    for (var i = 0; i < grades.length; i++) {
+      div.innerHTML += "<i style='background: " + colours[i] + "'></i> " + grades[i] + (grades[i + 1] ? "&ndash;" + grades[i + 1] + "<br>" : "+");
+    }
+    
+    return div;
+  };
+  legend.addTo(myMap);
 
-    // Create a layer control
-    // Pass in our baseMaps and overlayMaps
-    // Add the layer control to the map
-    L.control.layers(baseMaps, overlayMaps, {
-      collapsed: false
-    }).addTo(myMap);
 }
